@@ -18,6 +18,10 @@ class SecretKeyGenerator(object):
 
     def __call__(self):
         key = gen_secret_key(64)
+
+        if not db_table_exists(self.get_model()._meta.db_table):
+            return key
+
         while self.get_model().objects.filter(**{self.field: key}).exists():
             key = gen_secret_key(64)
         return key
@@ -73,3 +77,18 @@ class Token(models.Model):
     def refresh(self):
         self.timestamp = timezone.now()
         self.save()
+
+
+# https://gist.github.com/rctay/527113
+def db_table_exists(table, cursor=None):
+    try:
+        if not cursor:
+            from django.db import connection
+            cursor = connection.cursor()
+        if not cursor:
+            raise Exception
+        table_names = connection.introspection.get_table_list(cursor)
+    except:
+        raise Exception("Unable to determine if the table '%s' exists" % table)
+    else:
+        return table in table_names
